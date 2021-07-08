@@ -1,15 +1,33 @@
+import { STATUS_CODES } from 'http';
 import crypto from 'crypto';
 import React from 'react';
 export default function Register({ cryptids }) {
-  const [creds, setCreds] = React.useState(null);
-  React.useEffect(() => {
-    create(cryptids.replace(/-/g, '+').replace(/_/g, '/')).then(setCreds);
-  }, []); //eslint-disable-line react-hooks/exhaustive-deps
+  async function click() {
+    const foo = await create(cryptids);
 
-  return <pre>{JSON.stringify(cryptids)}</pre>;
+    console.log(foo);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={click}>
+        Login
+      </button>
+      <pre>{JSON.stringify(cryptids)}</pre>
+    </>
+  );
 }
 
-export async function getServerSideProps() {
+export async function getServerSideProps({ req, res }) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    req.headers['x-real-ip'] !== process.env.VALID_IP
+  ) {
+    res.status = 403;
+    res.end(STATUS_CODES[403]);
+    return { props: {} };
+  }
+
   return {
     props: {
       cryptids: crypto.randomBytes(32).toString('base64'),
