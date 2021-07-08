@@ -3,7 +3,7 @@ import React from 'react';
 export default function Register({ cryptids }) {
   const [creds, setCreds] = React.useState(null);
   React.useEffect(() => {
-    setCreds(create(cryptids.replace(/-/g, '+').replace(/_/g, '/')));
+    create(cryptids.replace(/-/g, '+').replace(/_/g, '/')).then(setCreds);
   }, []); //eslint-disable-line react-hooks/exhaustive-deps
 
   return <pre>{JSON.stringify(cryptids)}</pre>;
@@ -48,7 +48,9 @@ async function create(challengeString) {
         alg: -37,
       },
     ],
+
+    authenticatorSelection: { authenticatorAttachment: 'platform' },
   };
 
-  console.log(await navigator.credentials.create({ publicKey: creds }));
+  return navigator.credentials.create({ publicKey: creds });
 }
