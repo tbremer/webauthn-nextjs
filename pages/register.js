@@ -1,11 +1,34 @@
 import { STATUS_CODES } from 'http';
 import crypto from 'crypto';
 import React from 'react';
+
+import database from '../database';
+
+// import { CBOR } from 'cbor-redux';
+
+function arrayBufferToString(buf) {
+  return String.fromCharCode.apply(null, new Uint8Array(buf));
+}
+
 export default function Register({ cryptids }) {
   async function click() {
     const foo = await create(cryptids);
+    const body = JSON.stringify({
+      attestationObject: arrayBufferToString(foo.response.attestationObject),
+      clientDataJSON: arrayBufferToString(foo.response.clientDataJSON),
+    });
 
-    console.log(foo);
+    console.log(JSON.parse(JSON.parse(body).clientDataJSON));
+
+    const resp = await fetch('/api/validation', {
+      method: 'POST',
+      body,
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+
+    console.log(resp);
   }
 
   return (
@@ -28,14 +51,12 @@ export async function getServerSideProps({ req, res }) {
     return { props: {} };
   }
 
-  return {
-    props: {
-      cryptids: crypto.randomBytes(32).toString('base64'),
-    },
-  };
+  database.challenge = crypto.randomBytes(32);
+
+  return { props: { cryptids: database.challenge.toString('base64') } };
 }
 
-async function create(challengeString) {
+function create(challengeString) {
   // Create Creds:
   const creds = {
     // https://developer.mozilla.org/en-US/docs/Web/API/PublicKeyCredentialCreationOptions/rp
@@ -51,7 +72,7 @@ async function create(challengeString) {
     },
 
     // https://developer.mozilla.org/en-US/docs/Web/API/PublicKeyCredentialCreationOptions/challenge
-    challenge: Uint8Array.from(atob(challengeString), (c) => c.charCodeAt(0)),
+    challenge: Uint8Array.from(challengeString, (c) => c.charCodeAt(0)),
 
     // https://developer.mozilla.org/en-US/docs/Web/API/PublicKeyCredentialCreationOptions/pubKeyCredParams
     pubKeyCredParams: [
@@ -67,7 +88,10 @@ async function create(challengeString) {
       },
     ],
 
-    authenticatorSelection: { authenticatorAttachment: 'platform' },
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      userVerification: 'discouraged',
+    },
   };
 
   return navigator.credentials.create({ publicKey: creds });
